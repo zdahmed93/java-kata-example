@@ -1,0 +1,38 @@
+name: Trigger code-review-node on tag
+
+on:
+  push:
+    tags:
+      - "review-*"
+
+jobs:
+  trigger-orchestrator:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch review request to orchestrator
+        env:
+          ORCH_OWNER: zdahmed93
+          ORCH_REPO: code-review-node
+          ORCH_PAT: ${{ secrets.ORCH_PAT }}
+          TARGET_REPO: ${{ github.repository }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          test -n "$ORCH_PAT"
+
+          # Optional: parse base branch from tag like review-main-2026-03-26
+          PR_BASE="main"
+
+          curl -sS -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $ORCH_PAT" \
+            https://api.github.com/repos/$ORCH_OWNER/$ORCH_REPO/dispatches \
+            -d @- <<JSON
+          {
+            "event_type": "run-external-review",
+            "client_payload": {
+              "target_repo": "$TARGET_REPO",
+              "pr_base": "$PR_BASE"
+            }
+          }
+          JSON
